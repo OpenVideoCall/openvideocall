@@ -29,6 +29,43 @@ const logger: OpenViduLogger = OpenViduLogger.getInstance();
  */
 let platform: PlatformUtils;
 
+// 3 spatial simulcast layers, with a different SSRC and RID for each layer.
+// RTCRtpEncodingParameters[]
+// https://w3c.github.io/webrtc-pc/#dom-rtcrtpencodingparameters
+//
+// NOTE: mediasoup assumes that encodings are ordered from lowest to highest
+// quality.
+// See: https://mediasoup.org/documentation/v3/mediasoup/rtp-parameters-and-capabilities/#Simulcast
+const simulcastEncodings = [
+  {
+    rid: "r0",
+    maxBitrate: 700000,
+    scaleResolutionDownBy: 16.0,
+    // scaleResolutionDownBy: 4.0,
+
+    // mediasoup-client/Chrome74.ts:send()
+    // https://w3c.github.io/webrtc-svc/#scalabilitymodes*
+    // https://w3c.github.io/webrtc-svc/#dependencydiagrams*
+    // scalabilityMode: "L1T3",
+  },
+  {
+    rid: "r1",
+    maxBitrate: 800000,
+    scaleResolutionDownBy: 8.0,
+    // scaleResolutionDownBy: 2.0,
+
+    // mediasoup-client/Chrome74.ts:send()
+    // scalabilityMode: "L1T3",
+  },
+  {
+    rid: "r2",
+    maxBitrate: 900000,
+    scaleResolutionDownBy: 1.0,
+
+    // mediasoup-client/Chrome74.ts:send()
+    // scalabilityMode: "L1T3",
+  },
+];
 
 export interface WebRtcPeerConfiguration {
     mediaConstraints: {
@@ -100,7 +137,14 @@ export class WebRtcPeer {
             }
             if (!!this.configuration.mediaStream) {
                 for (const track of this.configuration.mediaStream.getTracks()) {
-                    this.pc.addTrack(track, this.configuration.mediaStream);
+                    const tcInit: any = {
+                        direction: this.configuration.mode,
+                        streams: [this.configuration.mediaStream],
+                    };
+                    if (track.kind === "video") {
+                        tcInit.sendEncodings = simulcastEncodings;
+                    }
+                    const _tc = this.pc.addTransceiver(track, tcInit);
                 }
                 resolve();
             }
@@ -145,35 +189,12 @@ export class WebRtcPeer {
 
             logger.debug('RTCPeerConnection constraints: ' + JSON.stringify(constraints));
 
-            if (platform.isSafariBrowser() && !platform.isIonicIos()) {
-                // Safari (excluding Ionic), at least on iOS just seems to support unified plan, whereas in other browsers is not yet ready and considered experimental
-                if (offerAudio) {
-                    this.pc.addTransceiver('audio', {
-                        direction: this.configuration.mode,
-                    });
-                }
-                if (offerVideo) {
-                    this.pc.addTransceiver('video', {
-                        direction: this.configuration.mode,
-                    });
-                }
-                this.pc.createOffer()
-                    .then(offer => {
-                        logger.debug('Created SDP offer');
-                        resolve(offer);
-                    })
-                    .catch(error => reject(error));
-
-            } else {
-
-                // Rest of platforms
-                this.pc.createOffer(constraints)
-                    .then(offer => {
-                        logger.debug('Created SDP offer');
-                        resolve(offer);
-                    })
-                    .catch(error => reject(error));
-            }
+            this.pc.createOffer(constraints)
+                .then(offer => {
+                    logger.debug('Created SDP offer');
+                    resolve(offer);
+                })
+                .catch(error => reject(error));
         });
     }
 
