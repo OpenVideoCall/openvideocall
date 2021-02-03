@@ -1085,8 +1085,13 @@ export class Session extends EventDispatcher {
         const streamId: string = response.streamId;
         this.getConnection(connectionId, 'No connection found for connectionId ' + connectionId)
             .then(connection => {
-                logger.info('Filter event dispatched');
+                logger.info('Filter event dispatched:', response.eventType);
                 const stream: Stream = connection.stream!;
+                if (!stream.filter!.handlers[response.eventType] || typeof stream.filter!.handlers[response.eventType] !== 'function') {
+                    let handlers: string[] = [];
+                    for (const key in stream.filter!.handlers) handlers.push(key);
+                    return logger.error('Filter event not handled or is not a function! Actually filter events handled:', handlers.join(","));
+                }
                 stream.filter!.handlers[response.eventType](new FilterEvent(stream.filter!, response.eventType, response.data));
             });
     }
