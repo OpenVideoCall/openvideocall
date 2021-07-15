@@ -51,9 +51,9 @@ services:
         ulimits:
           core: -1
         volumes:
-            - /opt/openvidu/kms-crashes:/opt/openvidu/kms-crashes
+            - ${OPENVIDU_KMS_CRASHES_PATH}:/opt/openvidu/kms-crashes
             - ${OPENVIDU_RECORDING_PATH}:${OPENVIDU_RECORDING_PATH}
-            - /opt/openvidu/kurento-logs:/opt/openvidu/kurento-logs
+            - ${OPENVIDU_KMS_LOGS_PATH}:/opt/openvidu/kurento-logs
         environment:
             - KMS_MIN_PORT=40000
             - KMS_MAX_PORT=57000
