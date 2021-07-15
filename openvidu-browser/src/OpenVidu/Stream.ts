@@ -492,12 +492,17 @@ export class Stream {
      */
     disposeMediaStream(): void {
         if (this.mediaStream) {
-            this.mediaStream.getAudioTracks().forEach((track) => {
-                track.stop();
-            });
-            this.mediaStream.getVideoTracks().forEach((track) => {
-                track.stop();
-            });
+            const isSenderAndCustomTrack: boolean = !!this.outboundStreamOpts &&
+                this.outboundStreamOpts.publisherProperties.videoSource instanceof MediaStreamTrack;
+
+            if (!isSenderAndCustomTrack) {
+                this.mediaStream.getAudioTracks().forEach((track) => {
+                    track.stop();
+                });
+                this.mediaStream.getVideoTracks().forEach((track) => {
+                    track.stop();
+                });
+            }
             delete this.mediaStream;
         }
         // If subscribeToRemote local MediaStream must be stopped
